@@ -37,7 +37,7 @@ def bend_euler(wl=1.5, length=20.0):
 class phase_shifter_heater_builder:
     def __init__(self):
         # state initialization
-        self.count = 0
+        self.time_state = 0
 
     def __call__(
         self,
@@ -45,9 +45,11 @@ class phase_shifter_heater_builder:
         neff: float = 2.34,
         length: float = 10,
         loss: float = 0.0,
-        voltage=0,
+        voltage: float = 0.0,
+        time: float = 0.0,
     ):
         """Returns simple phase shifter model"""
+        assert time >= self.time_state, f"Time must be greater than {self.time_state}"
 
         deltaphi = voltage * np.pi
         phase = 2 * np.pi * neff * length / wl + deltaphi
@@ -59,29 +61,28 @@ class phase_shifter_heater_builder:
             }
         )
 
-        self.count += 1
-        print(f"count={self.count}")
+        self.time_state = time
+        print(f"sim_time={self.time_state}")
 
         return sdict
 
 
-def create_phase_shifter_heater() -> sax.Model:
+def create_phase_shifter_heater_model() -> sax.Model:
     return phase_shifter_heater_builder()
 
 
-assert sax.is_model_factory(create_phase_shifter_heater)
+assert sax.is_model_factory(create_phase_shifter_heater_model)
 
 models = {
     "bend_euler": bend_euler,
     "mmi1x2": mmi1x2,
     "straight": straight,
-    "straight_heater_metal_undercut": create_phase_shifter_heater,
+    "straight_heater_metal_undercut": create_phase_shifter_heater_model,
 }
 
 mzi_component = gf.components.mzi_phase_shifter_top_heater_metal(
     delta_length=delta_length,
 )
-# netlist = mzi_component.get_netlist(recursive=True)
 netlist = mzi_component.get_netlist()
 mzi_circuit, cir_info = sax.circuit(
     netlist=netlist,
@@ -89,16 +90,8 @@ mzi_circuit, cir_info = sax.circuit(
     ignore_missing_ports=True,
 )
 
-mzi_circuit(sxt={"voltage": 0})
-mzi_circuit(**{"sxt": {"voltage": 0}})
-
-S = mzi_circuit(wl=1.55)
-S
-
-# Okay, so sax.circuit returns a flat_circuit. A flat circuit returns a _circuit function which can take as input
-
 wl = np.linspace(1.5, 1.6, 256)
-S = mzi_circuit(wl=wl)
+S = mzi_circuit(wl=wl, time=0.1)
 
 plt.figure(figsize=(14, 4))
 plt.title("MZI")
@@ -109,11 +102,11 @@ plt.grid(True)
 plt.show()
 
 voltages = np.linspace(-1, 1, num=5)
-voltages = [-0.5, 0, 0.5]
 
-for voltage in voltages:
+for i, voltage in enumerate(voltages):
     S = mzi_circuit(
         wl=wl,
+        time=0.1 * (i + 1),
         sxt={"voltage": voltage},
     )
     plt.plot(wl * 1e3, abs(S["o1", "o2"]) ** 2, label=str(voltage))  # type: ignore
@@ -124,3 +117,4 @@ for voltage in voltages:
 
 plt.title("MZI vs voltage")
 plt.legend()
+plt.show()
