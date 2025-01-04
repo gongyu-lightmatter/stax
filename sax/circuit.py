@@ -7,6 +7,7 @@ import shutil
 import sys
 from functools import partial
 from typing import Callable, NamedTuple
+import inspect
 
 import black
 import networkx as nx
@@ -23,6 +24,7 @@ from .utils import (
     merge_dicts,
     update_settings,
 )
+from .stax_types import StatefulModelBuilder
 
 
 class CircuitInfo(NamedTuple):
@@ -66,7 +68,13 @@ def circuit(
     model_names = list(nx.topological_sort(dependency_dag))[::-1]
     for model_name in model_names:
         if model_name in models:
-            new_models[model_name] = models[model_name]
+            curr_model = models[model_name]
+            if inspect.isclass(curr_model) and issubclass(
+                curr_model, StatefulModelBuilder
+            ):
+                curr_model = curr_model()
+
+            new_models[model_name] = curr_model
             continue
 
         flatnet = recnet.root[model_name]
