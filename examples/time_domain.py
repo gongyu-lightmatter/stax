@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import sax
-from sax.stax_types import StatefulModelBuilder
 
 delta_length = 10
 mzi_component = gf.components.mzi_phase_shifter_top_heater_metal(
@@ -35,74 +34,7 @@ def bend_euler(wl=1.5, length=20.0):
     return {k: 0.99 * v for k, v in straight(wl=wl, length=length).items()}
 
 
-class phase_shifter_heater:
-    def __init__(
-        self,
-        wl: float = 1.55,
-        neff: float = 2.34,
-        length: float = 10,
-        loss: float = 0.0,
-        voltage=0,
-        count=0,
-    ):
-        self.wl = wl
-        self.neff = neff
-        self.length = length
-        self.loss = loss
-        self.voltage = voltage
-        self.count = count
-
-    def __call__(self, wl=1.55, voltage=0):
-        """Returns simple phase shifter model"""
-        self.wl = wl
-        self.voltage = voltage
-
-        deltaphi = self.voltage * np.pi
-        phase = 2 * np.pi * self.neff * self.length / self.wl + deltaphi
-        amplitude = np.asarray(10 ** (-self.loss * self.length / 20), dtype=complex)
-        transmission = amplitude * np.exp(1j * phase)
-        sdict = sax.reciprocal(
-            {
-                ("o1", "o2"): transmission,
-            }
-        )
-        self.count += 1
-        return sdict
-
-
-class phase_shifter_heater_empty_sig:
-    def __init__(
-        self,
-        wl: float = 1.55,
-        neff: float = 2.34,
-        length: float = 10,
-        loss: float = 0.0,
-        voltage=0,
-        count=0,
-    ):
-        self.wl = wl
-        self.neff = neff
-        self.length = length
-        self.loss = loss
-        self.voltage = voltage
-        self.count = count
-
-    def __call__(self):
-        """Returns simple phase shifter model"""
-        deltaphi = self.voltage * np.pi
-        phase = 2 * np.pi * self.neff * self.length / self.wl + deltaphi
-        amplitude = np.asarray(10 ** (-self.loss * self.length / 20), dtype=complex)
-        transmission = amplitude * np.exp(1j * phase)
-        sdict = sax.reciprocal(
-            {
-                ("o1", "o2"): transmission,
-            }
-        )
-        self.count += 1
-        return sdict
-
-
-class phase_shifter_heater_builder(StatefulModelBuilder):
+class phase_shifter_heater_builder:
     def __init__(self):
         # state initialization
         self.count = 0
@@ -133,13 +65,18 @@ class phase_shifter_heater_builder(StatefulModelBuilder):
         return sdict
 
 
+def create_phase_shifter_heater() -> sax.Model:
+    return phase_shifter_heater_builder()
+
+
+assert sax.is_model_factory(create_phase_shifter_heater)
+
 models = {
     "bend_euler": bend_euler,
     "mmi1x2": mmi1x2,
     "straight": straight,
-    "straight_heater_metal_undercut": phase_shifter_heater_builder,
+    "straight_heater_metal_undercut": create_phase_shifter_heater,
 }
-a = phase_shifter_heater_builder()
 
 mzi_component = gf.components.mzi_phase_shifter_top_heater_metal(
     delta_length=delta_length,

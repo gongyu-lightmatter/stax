@@ -7,7 +7,6 @@ import shutil
 import sys
 from functools import partial
 from typing import Callable, NamedTuple
-import inspect
 
 import black
 import networkx as nx
@@ -16,7 +15,7 @@ import numpy as np
 from .backends import circuit_backends, backend_map
 from .netlist import AnyNetlist, Netlist, NetlistDict, RecursiveNetlist, is_recursive
 from .netlist import netlist as parse_netlist
-from .saxtypes import Model, Settings, SType, scoo, sdense, sdict
+from .saxtypes import Model, Settings, SType, scoo, sdense, sdict, is_model_factory
 from .utils import (
     _replace_kwargs,
     get_ports,
@@ -24,7 +23,6 @@ from .utils import (
     merge_dicts,
     update_settings,
 )
-from .stax_types import StatefulModelBuilder
 
 
 class CircuitInfo(NamedTuple):
@@ -69,9 +67,7 @@ def circuit(
     for model_name in model_names:
         if model_name in models:
             curr_model = models[model_name]
-            if inspect.isclass(curr_model) and issubclass(
-                curr_model, StatefulModelBuilder
-            ):
+            if is_model_factory(curr_model):
                 curr_model = curr_model()
 
             new_models[model_name] = curr_model
