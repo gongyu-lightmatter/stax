@@ -48,7 +48,7 @@ class HPS_PhaseShifter_Proc_Var:
             == self._dphasete_P1_lookup.keys()
             == self._trans_lookup.keys()
         )
-        self._wl2index = {k: i for i, k in enumerate(self._dphasete_P0_lookup.keys())}
+        self._wl2index = {float(k): i for i, k in enumerate(self._dphasete_P0_lookup.keys())}
         self._dphasete_P0_lookup = np.array(list(self._dphasete_P0_lookup.values()))
         self._dphasete_P1_lookup = np.array(list(self._dphasete_P1_lookup.values()))
         self._trans_lookup = np.array(list(self._trans_lookup.values()))
@@ -71,7 +71,7 @@ class HPS_PhaseShifter_Proc_Var:
         self._time_state: float = 0.0
 
         # simulation properties
-        self._wavelength = np.atleast_1d("1.30147e-06")
+        self._wavelength = np.atleast_1d(1.30147e-06)
         self._wavelength_indexes = self._get_wl_indexes()
 
     def _get_wl_indexes(self):
@@ -100,6 +100,7 @@ class HPS_PhaseShifter_Proc_Var:
         if self.rc_filter_bool is True:
             t0 = self._time_state
             t1 = self._time
+            assert t1 >= t0, f"Time must be greater than {t0}"
             self._waveguide_temperature = self._waveguide_temperature + (
                 new_temp - self._waveguide_temperature
             ) * (
@@ -130,9 +131,9 @@ class HPS_PhaseShifter_Proc_Var:
         s21 = np.sqrt(self.trans) * np.exp(-1j * self.phase_change)
         return [[0.0, s21], [s21, 0.0]]
 
-    def __call__(self, wl=1.30147e-06, time=0.0, voltage=0.0):
-        self._wavelength = np.atleast_1d(wl).astype(str)
-        self._time = time
+    def __call__(self, wl=1.30147e-06, run_until_time=0.0, voltage=0.0):
+        self._wavelength = np.atleast_1d(wl)
+        self._time = run_until_time
         self._heater_voltage = voltage
 
         s_mat = self._construct_smatrix()
@@ -219,7 +220,7 @@ if __name__ == "__main__":
             1.31864e-06,
         ]
     )
-    S = mzi_circuit(wl=wl, time=0.1)
+    S = mzi_circuit(wl=wl, run_until_time=0.1)
 
     plt.figure(figsize=(14, 4))
     plt.title("MZI")
@@ -234,7 +235,7 @@ if __name__ == "__main__":
     for i, voltage in enumerate(voltages):
         S = mzi_circuit(
             wl=wl,
-            time=0.1 * (i + 1),
+            run_until_time=0.1 * (i + 1),
             sxt={"voltage": voltage},
         )
         plt.plot(wl * 1e3, abs(S["o1", "o2"]) ** 2, label=str(voltage))  # type: ignore
